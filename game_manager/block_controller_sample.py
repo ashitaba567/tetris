@@ -137,6 +137,25 @@ class Block_Controller(object):
             _board[(_y + dy) * self.board_data_width + _x] = Shape_class.shape
         return _board
 
+    def dropDownOnBoard(self, board, Shape_class, direction, x):
+        # internal function of getBoard.
+        # -- drop down the shape on the board.
+        width = self.width
+        height = self.height
+        dy = 22 - 1
+        coordArray = self.getShapeCoordArray(Shape_class, direction, x, 0)
+        # update dy
+        for _x, _y in coordArray:
+            _yy = 0
+            while _yy + _y < height and (_yy + _y < 0 or board[(_y + _yy) * width + _x] == 0):
+                _yy += 1
+            _yy -= 1
+            if _yy < dy:
+                dy = _yy
+        # get new board
+        _board = self.dropDownWithDy(board, Shape_class, direction, x, dy)
+        return _board
+
     def calcEvaluationValueSample(self, board):
         #
         # sample function of evaluate board.

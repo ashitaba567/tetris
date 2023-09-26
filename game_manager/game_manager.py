@@ -407,6 +407,7 @@ class Game_Manager(QMainWindow):
                     k += 1
                 # x operation
                 k = 0
+                #print(str(next_x))
                 while BOARD_DATA.currentX != next_x and k < 5:
                     if BOARD_DATA.currentX > next_x:
                         ret = BOARD_DATA.moveLeft()
@@ -614,6 +615,11 @@ class Game_Manager(QMainWindow):
                         "obstacle_height":"none",
                         "obstacle_probability":"none"
                       },
+                  "board_info":
+                      {
+                        "delete_mode":"none"
+                        ,
+                      },
                   }
         # update status
         ## board
@@ -692,6 +698,13 @@ class Game_Manager(QMainWindow):
         status["debug_info"]["random_seed"] = self.random_seed
         status["debug_info"]["obstacle_height"] = self.obstacle_height
         status["debug_info"]["obstacle_probability"] = self.obstacle_probability
+        
+        ### borde_info
+        status["board_info"]["delete_mode"] = "normal"
+        status["board_info"]["skip"] = "none"
+        status["board_info"]["nextDirection"] = 0
+        status["board_info"]["nextXpos"] = 0
+        
         if currentShapeIdx == Shape.shapeNone:
             print("warning: current shape is none !!!")
 

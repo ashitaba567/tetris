@@ -95,6 +95,27 @@ class Shape(object):
     # direction (回転状態)のテトリミノ座標配列を取得し、それをx,yに配置した場合の座標配列を返す
     ###################
     def getCoords(self, direction, x, y):
+        '''
+        print("-----------------------------------")
+        print("座標配列を返す最初" )
+        print(list((x + xx, y + yy) for xx, yy in self.getRotatedOffsets(direction)))
+        print("座標配列を返す終わり")
+        print("-----------------------------------")
+        
+        print("self.getRotatedOffsets(direction)について" + str(list(self.getRotatedOffsets(direction))))
+        xxx = 0
+        yyy = 0
+        for xx, yy in self.getRotatedOffsets(direction):
+            
+            print("xxについて"  + str(xx))
+            print("yyについて"  + str(yy))
+            xxx = xxx + xx
+            yyy = yyy + yy
+            print("xxxについて"  + str(xxx))
+            print("yyyについて"  + str(yyy))
+        
+        print("結果について" + str(list((x + xx, y + yy) for xx, yy in self.getRotatedOffsets(direction))))
+        '''
         return ((x + xx, y + yy) for xx, yy in self.getRotatedOffsets(direction))
 
     ###################
@@ -316,7 +337,8 @@ class BoardData(object):
                 self.nextShapeIndexCnt = 0
         else:
             # random value
-            nextShapeIndex = np_randomShape.random.randint(1, 8)
+            nextShapeIndex = np_randomShape.random.randint(1, 8) 
+            
         return nextShapeIndex
 
     #####################################
