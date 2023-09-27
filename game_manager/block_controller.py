@@ -51,7 +51,7 @@ class Block_Controller(object):
         # next shape info
         NextShapeDirectionRange = GameStatus["block_info"]["nextShape"]["direction_range"]
         self.NextShape_class = GameStatus["block_info"]["nextShape"]["class"]
-        self.Nexthape_index = GameStatus["block_info"]["nextShape"]["index"]
+        self.NextShape_index = GameStatus["block_info"]["nextShape"]["index"]
         # hold shape info
         HoldShapeDirectionRange = GameStatus["block_info"]["holdShape"]["direction_range"]
         self.HoldShape_class = GameStatus["block_info"]["holdShape"]["class"]
@@ -89,7 +89,8 @@ class Block_Controller(object):
         count = 0
         ClosedWall = 0
         CurrentMinoNum = GameStatus["block_info"]["currentShape"]["index"]
-        self.CalcDataList = np.empty((0,11), int)
+        HoldMinoNum = GameStatus["block_info"]["holdShape"]["index"]
+        self.CalcDataList = np.empty((0,12), int)
         
         # directionMaxSize: ブロックを回転させたときに地面に接する最大数
         self.shapeData = {"shape_info": 
@@ -282,7 +283,9 @@ class Block_Controller(object):
         
         # 空白を埋めた場合は積極的に消しに行く(最低限消せる列があったら消しに行くようにする)
         if (self.replace == 1):
-            #self.deleteRow = 1
+            self.deleteRow = 2
+            #self.delete = 1
+            #self.openCol = 0
             print("隙間が埋められてしまったので、積極的に消しに行くようにします。" + str(self.deleteRow) + "列揃っていれば消しにきます。")
                 
         # 空白を埋めた場合は、埋めた最大高さを保持して、それよりも上のラインで消せるラインがあればそれを優先する
@@ -311,22 +314,84 @@ class Block_Controller(object):
         maxFullLine = self.maxFullLine(editBoard, self.openCol)
         print ("現在の埋まっている盤面の最大列数:" + str(maxFullLine))
         
-        if (self.CurrentMinoNum > 1 and maxFullLine >= 2):
-            # 2列消しかつL字で消せるなら最優先で消す
+        # (maxFullLine >= 4):
+        #    self.openCol = 2
+        
+        if (self.CurrentMinoNum > 1 and maxFullLine >= 4 ):
+            # 4列消しかつ縦棒で消せるなら最優先で消す
             width = self.board_data_width
             height = self.board_data_height
             dFl = 0
-            for l in range(1, width,  1):
+            for l in range(0, width - 1,  1):
                 #print("x座標チェック" + str(x) + "インデックス" + str((y) * width + x))
                 #print("y座標チェック" + str(y) + "インデックス" + str((y) * width + x))
-                if (l == 1 and editBoard[(height - 1 - maxFullLine) * width + l] != 0):
-                    dFl = 1
-                    break
-                
-                if (l > 1 and editBoard[(height - 1 - maxFullLine) * width + l]) == 0:
-                    dFl = 1
-                    break
+                if (l == 0):
+                    if(editBoard[(height - 1 - maxFullLine + 2) * width + l] != 0):
+                        print("現在見ている箇所が空白でない")
+                        dFl = 1
+                        break
+                    if(editBoard[(height - 1 - maxFullLine + 1) * width + l] != 0):
+                        print ("ひとつ上の見ている箇所が空白でない")
+                        dFl = 1
+                        break
+                    if(editBoard[(height - 1 - maxFullLine) * width + l] != 0):
+                        print ("２つ上の見ている箇所が空白でない")
+                        dFl = 1
+                        break
+                    if(editBoard[(height - 1 - maxFullLine - 1) * width + l] != 0):
+                        print ("２つ上の見ている箇所が空白でない")
+                        dFl = 1
+                        break   
+                if (height - 1 - maxFullLine and l == 1):
+                    if (l > 1 and editBoard[(height - 1 - maxFullLine) * width + l] == 0):
+                        print ("自分が見ている箇所が空白")
+                        dFl = 1
+                        break
             
+            if (dFl != 1):
+                if (GameStatus["block_info"]["currentShape"]["index"] == 1):
+                    nextMove["strategy"]["direction"] = 2
+                    nextMove["strategy"]["x"] = 0
+                    nextMove["strategy"]["y_operation"] = 1
+                    nextMove["strategy"]["y_moveblocknum"] = 1
+                    return nextMove
+                    
+                if (GameStatus["block_info"]["holdShape"]["index"] == 1):
+                    nextMove["strategy"]["use_hold_function"] = "y"
+                    nextMove["strategy"]["direction"] = 2
+                    nextMove["strategy"]["x"] = 0
+                    nextMove["strategy"]["y_operation"] = 1
+                    nextMove["strategy"]["y_moveblocknum"] = 1
+        
+        
+        if (self.CurrentMinoNum > 1 and maxFullLine >= 7 ):
+            # 3列消しかつ逆L字（J字）で消せるなら最優先で消す
+            width = self.board_data_width
+            height = self.board_data_height
+            dFl = 0
+            for l in range(0, width - 1,  1):
+                #print("x座標チェック" + str(x) + "インデックス" + str((y) * width + x))
+                #print("y座標チェック" + str(y) + "インデックス" + str((y) * width + x))
+                if (l == 0):
+                    if(editBoard[(height - 1 - maxFullLine + 2) * width + l] != 0):
+                        print("現在見ている箇所が空白でない")
+                        dFl = 1
+                        break
+                    if(editBoard[(height - 1 - maxFullLine + 1) * width + l] != 0):
+                        print ("ひとつ上の見ている箇所が空白でない")
+                        dFl = 1
+                        break
+                    if(editBoard[(height - 1 - maxFullLine) * width + l] != 0):
+                        print ("２つ上の見ている箇所が空白でない")
+                        dFl = 1
+                        break   
+                if (height - 1 - maxFullLine and l == 1):
+                    if (l > 1 and editBoard[(height - 1 - maxFullLine) * width + l] == 0):
+                        print ("自分が見ている箇所が空白")
+                        dFl = 1
+                        break
+            
+            print("L字でラインを3列消しに生きます")
             if (dFl != 1):
                 if (GameStatus["block_info"]["currentShape"]["index"] == 3):
                     nextMove["strategy"]["direction"] = 2
@@ -345,21 +410,37 @@ class Block_Controller(object):
         
         
         # 二列埋まっていて、四角を差し込めるなら優先的に差し込む
-        if (self.CurrentMinoNum > 1 and maxFullLine >= 2):
+        # この場合のみ左二列以外の列が２つ分積んであるか確認する
+        maxFullLine2 = self.maxFullLine(editBoard, 2)
+        print ("現在の埋まっている盤面の最大列数（四角ブロック用）:" + str(maxFullLine2))
+        if (self.CurrentMinoNum > 1 and maxFullLine2 >= 2):
             # 2列消しかつL字で消せるなら最優先で消す
             width = self.board_data_width
             height = self.board_data_height
             dFl = 0
-            for l in range(1, width,  1):
-                #print("x座標チェック" + str(x) + "インデックス" + str((y) * width + x))
-                #print("y座標チェック" + str(y) + "インデックス" + str((y) * width + x))
-                if ((l == 1 or l == 2) and editBoard[(height - 1 - maxFullLine + 2) * (width - 1) + l] != 0 or (l == 1 or l == 2) and editBoard[(height - 1 - maxFullLine + 1) * (width - 1) + l] != 0):
-                    dFl = 1
-                    break
+            for l in range(0, width - 1,  1):
+                print("x座標チェック" + str(l) + "インデックス" + str((height - 1 - maxFullLine2 + 2) * width + l) + "値は" + str(editBoard[(height - 1 - maxFullLine2 + 2) * width + l]))
+                print("x座標チェック2" + str(l) + "インデックス" + str((height - 1 - maxFullLine2 + 1) * width + l) + "値は" + str(editBoard[(height - 1 - maxFullLine2 + 1) * width + l]))
+                print("y座標チェック" + str(height - 1 - maxFullLine2 + 2) )
+                print("xのインデックスをチェック" + str(l) )
+                # 四角消す場所が埋まってたらアウト
                 
-                if (l > 2 and editBoard[(height - 1 - maxFullLine ) * width + l]) == 0:
+                if (l == 0 or l == 1):
+                    if(editBoard[(height - 1 - maxFullLine2 + 2) * width + l] != 0):
+                        print("現在見ている箇所が空白でない")
+                        dFl = 1
+                        break
+                    if(editBoard[(height - 1 - maxFullLine2 + 1) * width + l] != 0):
+                        print ("ひとつ上の見ている箇所が空白でない")
+                        dFl = 1
+                        break
+                
+                if (l > 1 and editBoard[(height - 1 - maxFullLine2 + 2) * width + l] == 0):
+                    print ("自分が見ている箇所が空白")
                     dFl = 1
                     break
+            
+            print("四角で消しに行こうとしている" + str(dFl))
             
             if (dFl != 1):
                 if (GameStatus["block_info"]["currentShape"]["index"] == 5):
@@ -382,11 +463,12 @@ class Block_Controller(object):
         # 一番左以外の下xxx列が埋まっている
         if (delFl):
             print("チェック通過")
-            if (self.board_backboard[210] != 0 and self.board_backboard[200] != 0 and self.board_backboard[190] != 0 and self.board_backboard[180] != 0):
+            #if (self.board_backboard[210] != 0 and self.board_backboard[200] != 0 and self.board_backboard[190] != 0 and self.board_backboard[180] != 0):
                 # 縦棒で消せる列以上になったら二列開けるようにする
-                self.openCol = 2
+                #self.openCol = 2
             
             if(GameStatus["block_info"]["currentShape"]["index"] == 1 or GameStatus["block_info"]["holdShape"]["index"] == 1):
+                print("削除するために縦棒があった場合は消しにかかる")
                 self.delete = 1
                 #self.openCol = 0
                 
@@ -423,7 +505,7 @@ class Block_Controller(object):
                     print("列を消すためにセットされたミノは" + self.convertShapeNumToName(CurrentMinoNum) + "です。")
                     print(str(self.debugBoard(self.getBoard(self.board_backboard, self.CurrentShape_class, 0, 0))))
                     return nextMove
-            
+            '''
             if (self.deleteRow == 2):
                 if (GameStatus["block_info"]["holdShape"]["index"] == 6 and editBoard[210] != 0):
                 # 縦棒だったらホールドしているので入れ替えて左端にセットする
@@ -456,7 +538,7 @@ class Block_Controller(object):
                     print("列を消すためにセットされたミノは" + self.convertShapeNumToName(CurrentMinoNum) + "です。")
                     print(str(self.debugBoard(self.getBoard(self.board_backboard, self.CurrentShape_class, 0, 0))))
                     return nextMove
-        
+            '''
         # holdの条件チェックを行います。条件に合致していれば、holdを実施する 
         # 縦棒で、holdしているものが縦棒でない場合（４列消し狙うため）
         # 一番目のブロックで、S字かZ字の場合（初手で来られたらほぼ確実に平積みできなくなるため）      
@@ -471,12 +553,55 @@ class Block_Controller(object):
             print(str(self.debugBoard(self.board_backboard)))
             
             if ((GameStatus["block_info"]["holdShape"]["index"] is None) or (GameStatus["block_info"]["holdShape"]["index"] == 1)):
+                nextMove["strategy"]["direction"] = 1
+                nextMove["strategy"]["x"] = 0
+                nextMove["strategy"]["y_operation"] = 1
+                nextMove["strategy"]["y_moveblocknum"] = 1
                 return nextMove
             else:
                 #入れ替えた場合は、ホールドしているブロックの情報と入れ替えた縦棒の情報を入れ替えないといけない
+                print("ホールドしたブロックを今のブロックへ代入（ホールドしたブロックは評価しないため、情報としては両方とも評価対象のブロックになる")
+                
+                
+                print ("入れ替え前今のミノ" + str(GameStatus["block_info"]["currentShape"]["index"]))
+                print ("入れ替え前回転数" + str(self.CurrentShape_class))
+                print ("入れ替え前クラス" + str(CurrentShapeDirectionRange))                
+                print ("入れ替え前ホールドのミノ" + str(GameStatus["block_info"]["holdShape"]["index"]))
+                print ("入れ替え前回転数ホールド" + str(GameStatus["block_info"]["holdShape"]["direction_range"]))
+                print ("入れ替え前ホールドクラス" + str(GameStatus["block_info"]["holdShape"]["class"]))   
+                
                 self.CurrentShape_class = GameStatus["block_info"]["holdShape"]["class"]
                 GameStatus["block_info"]["currentShape"]["index"] = GameStatus["block_info"]["holdShape"]["index"]
                 CurrentShapeDirectionRange = GameStatus["block_info"]["holdShape"]["direction_range"]
+                CurrentMinoNum = HoldMinoNum
+                '''
+                print("入れ替え完了")
+                print ("入れ替え後今のミノ" + str(GameStatus["block_info"]["currentShape"]["index"]))
+                print ("入れ替え後回転数" + str(self.CurrentShape_class))
+                print ("入れ替え後クラス" + str(CurrentShapeDirectionRange))                
+                print ("入れ替え後ホールドのミノ" + str(GameStatus["block_info"]["holdShape"]["index"]))
+                print ("入れ替え後回転数ホールド" + str(GameStatus["block_info"]["holdShape"]["direction_range"]))
+                print ("入れ替え後ホールドクラス" + str(GameStatus["block_info"]["holdShape"]["class"]))  
+                 
+               
+                print ("入れ替え前今のミノ" + str(self.CurrentShape_index))
+                print ("入れ替え前回転数" + str(CurrentShapeDirectionRange))
+                print ("入れ替え前クラス" + str(self.CurrentShape_class))                
+                print ("入れ替え前ホールドのミノ" + str(self.HoldShape_index))
+                print ("入れ替え前回転数ホールド" + str(HoldShapeDirectionRange))
+                print ("入れ替え前ホールドクラス" + str(self.HoldShape_class))   
+                self.CurrentShape_class, self.HoldShape_class = self.HoldShape_class, self.CurrentShape_class
+                self.CurrentShape_index, self.HoldShape_index = self.HoldShape_index, self.CurrentShape_index
+                CurrentShapeDirectionRange, HoldShapeDirectionRange = HoldShapeDirectionRange, CurrentShapeDirectionRange
+                CurrentMinoNum, HoldMinoNum = HoldMinoNum, CurrentMinoNum
+                print("入れ替え完了")
+                print ("入れ替え後今のミノ" + str(self.CurrentShape_index))
+                print ("入れ替え後回転数" + str(CurrentShapeDirectionRange))
+                print ("入れ替え後クラス" + str(self.CurrentShape_class))                
+                print ("入れ替え後ホールドのミノ" + str(self.HoldShape_index))
+                print ("入れ替え後回転数ホールド" + str(HoldShapeDirectionRange))
+                print ("入れ替え後ホールドクラス" + str(self.HoldShape_class))   
+                '''
         else:
             nextMove["strategy"]["use_hold_function"] = "n"
                   
@@ -516,22 +641,33 @@ class Block_Controller(object):
         print("ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー") 
         print("ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー") 
         print("ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー")  
+        
+        print("現在のモードは" + str(self.delete))
+        print("現在のブロックは" + str(self.delete))
+        print("現在のブロックは" + str(self.delete))
+        print("現在のモードは" + str(self.delete))
+        print("現在のモードは" + str(self.delete))
+        print("現在のモードは" + str(self.delete))
+        print("現在のモードは" + str(self.delete))
          
         # 評価計算 
         print("現在のミノの評価です")      
         CalcDataList = self.calcBlockSet(CurrentShapeDirectionRange, self.CurrentShape_class, editBoard, GameStatus, "current", self.CurrentShape_index)
-        _df = self.judgeEvaluate(CalcDataList, CurrentShapeDirectionRange, self.CurrentShape_class, editBoard, GameStatus)
+        #CalcDataList = self.calcBlockSetN1(CurrentShapeDirectionRange, self.CurrentShape_class, editBoard, GameStatus, "current", self.NextShape_index, NextShapeDirectionRange, self.NextShape_class)
+        _df = self.judgeEvaluate(CalcDataList, CurrentShapeDirectionRange, self.CurrentShape_class, editBoard, GameStatus, self.CurrentShape_index)
         
         # 評価計算（ホールド）
-        print("ホールドされたのミノの評価です")  
-        CalcDataListHold = self.calcBlockSet(HoldShapeDirectionRange, self.HoldShape_class, editBoard, GameStatus, "hold", self.HoldShape_index)
-        _dfh = self.judgeEvaluate(CalcDataListHold, HoldShapeDirectionRange, self.HoldShape_class, editBoard, GameStatus)
+        print("ホールドされたのミノの評価です") 
+        #print(str(GameStatus["block_info"]["holdShape"]["index"]))
+        if not GameStatus["block_info"]["holdShape"]["index"] is None: 
+            CalcDataListHold = self.calcBlockSet(HoldShapeDirectionRange, self.HoldShape_class, editBoard, GameStatus, "hold", self.HoldShape_index)
+            _dfh = self.judgeEvaluate(CalcDataListHold, HoldShapeDirectionRange, self.HoldShape_class, editBoard, GameStatus, self.HoldShape_index)
         
         #print("ホールド側の評価" + str(_dfh))
                 
         # なかった場合(配置後に空白ができてしまう場合はホールドしているミノも評価対象にする
         # and (GameStatus["block_info"]["currentShape"]["index"] != 1)
-        if ((_df['UnderSpace'].min() == 1) ):
+        if ((not (_df.empty) and _df['UnderSpace'].min() == 1) ):
             
             # 縦棒をホールドしてしまっていたら、一度入れ替え直す
             if (nextMove["strategy"]["use_hold_function"] == "y"):
@@ -574,6 +710,10 @@ class Block_Controller(object):
             print ("現在ブロック" + str(GameStatus["block_info"]["currentShape"]["index"]))
             print ("ホールドしているブロック" + str(GameStatus["block_info"]["holdShape"]["index"]))
             if (GameStatus["block_info"]["holdShape"]["index"] is not None and GameStatus["block_info"]["holdShape"]["index"] != 1):
+                print ("今のdfの値" + str(_df))
+                print ("ホールドのdfhの値" + str(_dfh))
+                print ("今の値" + str(_df['FullAdjustSide'].min()))
+                print ("ホールドの値" + str(_dfh['FullAdjustSide'].min()))
                 
                 if (_df['FullAdjustSide'].min() is None):
                     fullAd = 0
@@ -590,7 +730,37 @@ class Block_Controller(object):
                 if ((fullAdHold > fullAd)):
                     strategy = (_dfh['Direction'].min(), _dfh['xPos'].min(), 1, 1)
                     nextMove["strategy"]["use_hold_function"] = "y"
+                    nextMove["strategy"]["direction"] = strategy[0]
+                    nextMove["strategy"]["x"] = strategy[1]
+                    nextMove["strategy"]["y_operation"] = strategy[2]
+                    nextMove["strategy"]["y_moveblocknum"] = strategy[3]
                     print("ホールドしているブロックのほうが評価が高いため入れ替えます")
+                    return nextMove
+                
+                # 次は下壁に完全に設定しているものを評価
+                if (_df['FullAdjust'].min() is None):
+                    fullAd2 = 0
+                else:
+                    fullAd2 = _df['FullAdjust'].min()
+                    
+                if (_dfh['FullAdjust'].min() is None):
+                    fullAdHold2 = 0
+                else:
+                    fullAdHold2 = _dfh['FullAdjust'].min()
+        
+                # ホールドしているブロックのほうが接地面多かったらそっちを採用する
+                print("今のミノの接地数" + str(fullAd2) + "-----------------------ホールドされているミノの接地数" + str(fullAdHold2))
+                if ((fullAdHold2 > fullAd2)):
+                    strategy = (_dfh['Direction'].min(), _dfh['xPos'].min(), 1, 1)
+                    nextMove["strategy"]["use_hold_function"] = "y"
+                    nextMove["strategy"]["direction"] = strategy[0]
+                    nextMove["strategy"]["x"] = strategy[1]
+                    nextMove["strategy"]["y_operation"] = strategy[2]
+                    nextMove["strategy"]["y_moveblocknum"] = strategy[3]
+                    print("ホールドしているブロックのほうが評価が高いため入れ替えます")
+                    return nextMove
+                
+                
                             
         # S字とZ字は一番いらないブロックなので早めに消していく
         
@@ -655,12 +825,12 @@ class Block_Controller(object):
         
         return nextMove
     
-    def judgeEvaluate(self, CalcDataList, ShapeDirectionRange,Shape_class, editBoard, GameStatus):
+    def judgeEvaluate(self, CalcDataList, ShapeDirectionRange, Shape_class, editBoard, GameStatus, minoIndex):
     
         # ここからが評価計算した値から最適解を算出する    
         # 最終的な評価をpandasを利用して実施する
         strategy = None
-        col=["UnderWall", "SideWall", "BlankGroundSpace", "MaxBlockHeight", "closedWall", "Direction", "xPos", "DeleteLineNum", "FullAdjust", "FullAdjustSide", "UnderSpace"]
+        col=["UnderWall", "SideWall", "BlankGroundSpace", "MaxBlockHeight", "closedWall", "Direction", "xPos", "DeleteLineNum", "FullAdjust", "FullAdjustSide", "UnderSpace", "TripleHole"]
         pd.set_option('display.max_columns', 900)
         df = pd.DataFrame(data=CalcDataList, columns=col).astype('int')
         print(df)
@@ -679,6 +849,8 @@ class Block_Controller(object):
         
         # 左壁がミノで埋まってたら別の消し方に変える(消したときにミノが残るパターンすべて想定して条件分岐させる)
         preBoard = self.board_backboard
+        #print(self.debugBoard(preBoard))
+        
         if (preBoard[210] != 0 and preBoard[200] != 0 and preBoard[190] != 0 and preBoard[180] != 0):
             self.insertSpace = 1
                     
@@ -688,8 +860,8 @@ class Block_Controller(object):
             if (not dfsp.empty):
                 minBlockHeight = dfsp['MaxBlockHeight'].min()
                 dfsp2 = dfsp.query('MaxBlockHeight == @minBlockHeight').head(1)
-                strategy = (dfsp2['Direction'].max(), dfsp2['xPos'].max(), 1, 1)
-                return strategy 
+                print("別の消し方に変えている")
+                return dfsp2 
                
         # 削除モードのときは残り床が0のものを優先的に採用する
         if (self.delete == 1):
@@ -703,7 +875,7 @@ class Block_Controller(object):
                 # 削除モードで削除できないブロックだったら、通常モードとして再評価
                 print("列を削除できないので通常モードで再評価します")
                 self.delete = 0
-                ReCalcDataList = self.calcBlockSet(ShapeDirectionRange,Shape_class, editBoard, GameStatus)
+                ReCalcDataList = self.calcBlockSet(ShapeDirectionRange,Shape_class, editBoard, GameStatus, "current", minoIndex)
                 df = pd.DataFrame(data=ReCalcDataList, columns=col).astype('int')
                   
                 if (clFl == 0):
@@ -814,7 +986,7 @@ class Block_Controller(object):
     
     def calcBlockSet(self, ShapeDirectionRange, ShapeClass, editBoard, GameStatus, mode, minoIndex):
         
-        CalcDataList = np.empty((0,11), int)
+        CalcDataList = np.empty((0,12), int)
         count = 0
         
         shapeType = "currentShape"
@@ -837,6 +1009,8 @@ class Block_Controller(object):
                 count = count + 1
                 fullAdjust = 0
                 fullAdjustSide = 0
+                tripleHole = 0
+                
                 # get board data, as if dropdown block
                 board = self.getBoard(editBoard, ShapeClass, direction0, x0)                
                 print("★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★")                
@@ -861,6 +1035,10 @@ class Block_Controller(object):
                 # 床と下と左接地最大面を比較する
                 if (self.checkMinoContactSideArea(GameStatus["block_info"][shapeType]["index"], direction0, UnderAdjacent, Adjacent)):
                     fullAdjustSide = 1
+                    
+                # 配置後の盤面で空白が３つできるか確認する
+                if (self.shapeIsetCheck(editBoard, self.openCol) > 0):
+                    tripleHole = 1
                                     
                 # 対象データをデータリストに退避（後で評価として利用する）
                 arr = np.array([])
@@ -874,9 +1052,103 @@ class Block_Controller(object):
                 arr = np.append(arr, np.array(DeleteLineNum))
                 arr = np.append(arr, np.array(fullAdjust))
                 arr = np.append(arr, np.array(fullAdjustSide))
-                arr = np.append(arr, np.array(UnderSpace))                
+                arr = np.append(arr, np.array(UnderSpace)) 
+                arr = np.append(arr, np.array(tripleHole))                      
                 CalcDataList = np.append(CalcDataList, np.array([arr]), axis=0)
                 print(str(self.CalcDataList))
+        
+        return CalcDataList
+
+    def calcBlockSetN1(self, ShapeDirectionRange, ShapeClass, editBoard, GameStatus, mode, minoIndex, NextShapeDirectionRange, NextShapeClass):
+        
+        CalcDataList = np.empty((0,12), int)
+        count = 0
+        
+        shapeType = "currentShape"
+        
+        if (mode == "hold"):
+            shapeType = "holdShape"
+                   
+        
+        for direction1 in ShapeDirectionRange:
+          
+            # search with x range
+            x0Min1, x0Max1 = self.getSearchXRange(ShapeClass, direction1)
+            #print("最小値:" + str(x0Min + 1) + "最大値:" + str(x0Max))
+            #削除モードの場合は盤面全般を評価するようにする
+            if (self.delete == 1):
+                x1Min1 = x0Min1
+            else:
+                x1Min1 = x0Min1 + self.openCol    
+                
+            for x1 in range(x1Min1, x0Max1):
+                
+                #現在のブロックを落とした後の盤面を取得
+                boardN0 = self.getBoard(self.replaceBlankSpace(self.editBoard(editBoard), self.openCol), ShapeClass, direction1, x1)
+                
+                for direction0 in NextShapeDirectionRange:
+                
+                    # search with x range
+                    x0Min, x0Max = self.getSearchXRange(NextShapeClass, direction0)
+                    #print("最小値:" + str(x0Min + 1) + "最大値:" + str(x0Max))
+                    #削除モードの場合は盤面全般を評価するようにする
+                    if (self.delete == 1):
+                        x1Min = x0Min
+                    else:
+                        x1Min = x0Min + self.openCol    
+                        
+                    for x0 in range(x1Min, x0Max):
+                        count = count + 1
+                        fullAdjust = 0
+                        fullAdjustSide = 0
+                        tripleHole = 0
+                        print("一手先の盤面を読むよーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー")
+                        # get board data, as if dropdown block
+                        # 今の手を置いた場合の盤面を加工する                        
+                        board = self.getBoard(boardN0, NextShapeClass, direction0, x0)            
+                        print("★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★")                
+                        print("評価番号" + str(count - 1) + "について")
+                        if (mode == "current"):
+                            print("今のミノは" + self.convertShapeNumToName(GameStatus["block_info"][shapeType]["index"]) + "で回転数は" + str(direction0 + 1) + "で今のx座標の位置" + str(x0))
+                        else:
+                            print("ホールドされたミノは" + self.convertShapeNumToName(GameStatus["block_info"][shapeType]["index"]) + "で回転数は" + str(direction0 + 1) + "で今のx座標の位置" + str(x0))
+                        print("★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★")
+                        print("\n")
+                        
+                        # 次の一手に対して評価する
+                        
+                        #self.nextBoardCalc(board, GameStatus, direction0, x0)
+                                        
+                        Ground, Adjacent, UnderAdjacent, MaxHeight, ClosedWall, DeleteLineNum, UnderSpace = self.calcContactArea2(board, minoIndex)
+                                    
+                        # 床と下接地最大面を比較する
+                        if (self.checkMinoContactArea(GameStatus["block_info"][shapeType]["index"], direction0, UnderAdjacent)):
+                            fullAdjust = 1
+                            
+                        # 床と下と左接地最大面を比較する
+                        if (self.checkMinoContactSideArea(GameStatus["block_info"][shapeType]["index"], direction0, UnderAdjacent, Adjacent)):
+                            fullAdjustSide = 1
+                            
+                        # 配置後の盤面で空白が３つできるか確認する
+                        if (self.shapeIsetCheck(editBoard, self.openCol) > 0):
+                            tripleHole = 1
+                                            
+                        # 対象データをデータリストに退避（後で評価として利用する）
+                        arr = np.array([])
+                        arr = np.append(arr, np.array(UnderAdjacent))
+                        arr = np.append(arr, np.array(Adjacent))
+                        arr = np.append(arr, np.array(Ground))
+                        arr = np.append(arr, np.array(MaxHeight))
+                        arr = np.append(arr, np.array(ClosedWall))
+                        arr = np.append(arr, np.array(direction1))
+                        arr = np.append(arr, np.array(x1))
+                        arr = np.append(arr, np.array(DeleteLineNum))
+                        arr = np.append(arr, np.array(fullAdjust))
+                        arr = np.append(arr, np.array(fullAdjustSide))
+                        arr = np.append(arr, np.array(UnderSpace)) 
+                        arr = np.append(arr, np.array(tripleHole))                      
+                        CalcDataList = np.append(CalcDataList, np.array([arr]), axis=0)
+                        print(str(self.CalcDataList))
         
         return CalcDataList
 
@@ -1124,6 +1396,7 @@ class Block_Controller(object):
         height = self.board_data_height
         #print("width" + str())
         xx = 0
+        yy = 0
         
         # 複数候補があったらなるべく右側の方に配置する（左は段で積みたいため）
                     
@@ -1147,15 +1420,21 @@ class Block_Controller(object):
                 if (x == openCol):
                     # 二列目のみ右と上をチェック
                     if ((board[(y) * self.board_data_width + x + 1 ] != 0 and board[(y - 1) * self.board_data_width + x + 1 ] != 0 and board[(y - 2) * self.board_data_width + x + 1 ] != 0) and (board[(y) * self.board_data_width + x] == 0 and board[(y - 1) * self.board_data_width + x] == 0 and board[(y - 2) * self.board_data_width + x ] == 0)):
-                        xx = x
+                        if (xx < x and yy < y):
+                            xx = x
+                            yy = y
                 if (x == width - 1):
                     # 一番右列のみ左と上をチェック
                     if ((board[(y) * self.board_data_width + x - 1 ] != 0 and board[(y - 1) * self.board_data_width + x - 1 ] != 0 and board[(y - 2) * self.board_data_width + x - 1 ] != 0) and (board[(y) * self.board_data_width + x] == 0 and board[(y - 1) * self.board_data_width + x] == 0 and board[(y - 2) * self.board_data_width + x ] == 0)):
-                        xx = x
+                        if (xx < x and yy < y):
+                            xx = x
+                            yy = y
                 else:
                     # 右、左、上をチェック
                     if ((board[(y) * self.board_data_width + x + 1 ] != 0 and board[(y - 1) * self.board_data_width + x + 1 ] != 0 and board[(y - 2) * self.board_data_width + x + 1 ] != 0)  and (board[(y) * self.board_data_width + x - 1 ] != 0 and board[(y - 1) * self.board_data_width + x - 1 ] != 0 and board[(y - 2) * self.board_data_width + x - 1 ] != 0) and (board[(y) * self.board_data_width + x] == 0 and board[(y - 1) * self.board_data_width + x] == 0 and board[(y - 2) * self.board_data_width + x ] == 0)):
-                        xx = x
+                        if (xx < x and yy < y):
+                            xx = x
+                            yy = y
         return xx
     
     # 現在の盤面で空白が周囲の壁で埋まっているかチェックする
