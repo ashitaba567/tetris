@@ -88,6 +88,7 @@ class Block_Controller(object):
         LastMaxHeight = 0
         count = 0
         ClosedWall = 0
+        changeHoldFl = 0
         CurrentMinoNum = GameStatus["block_info"]["currentShape"]["index"]
         HoldMinoNum = GameStatus["block_info"]["holdShape"]["index"]
         self.CalcDataList = np.empty((0,12), int)
@@ -289,12 +290,22 @@ class Block_Controller(object):
             print("隙間が埋められてしまったので、積極的に消しに行くようにします。" + str(self.deleteRow) + "列揃っていれば消しにきます。")
                 
         # 空白を埋めた場合は、埋めた最大高さを保持して、それよりも上のラインで消せるラインがあればそれを優先する
+        # 現在の最大盤面取得
+        maxFullLine = self.maxFullLine(editBoard, self.openCol)
+        print ("現在の埋まっている盤面の最大列数:" + str(maxFullLine))
                 
         # 3列以上溝ができていれば、縦棒を差し込む
-        setX = self.shapeIsetCheck(editBoard, self.openCol)
+        setX, setY = self.shapeIsetCheck(editBoard, self.openCol)
         delFl = self.checkDeleteLine(self.board_backboard, self.openCol, self.deleteRow)
         
-        if (setX > 0 and not delFl):
+        # 左端が何列埋まっているかを確認する
+        insLeft = self.checkInsertWallLeftNum(self.board_backboard)
+        # 左端が4列以上埋まっていたら積極的に消しに行く
+        if (insLeft >= 4):
+            self.delete = 1
+        
+        #if (setX > 0 and not delFl):
+        if ((maxFullLine < 4 and setX > 0) or (maxFullLine >= 4 and insLeft >= 4 and setX > 0)):
             if (GameStatus["block_info"]["currentShape"]["index"] == 1):
                 nextMove["strategy"]["direction"] = 0
                 nextMove["strategy"]["x"] = setX
@@ -309,11 +320,11 @@ class Block_Controller(object):
                 nextMove["strategy"]["y_operation"] = 1
                 nextMove["strategy"]["y_moveblocknum"] = 1
                 return nextMove
-        
-        # 現在の最大盤面取得
-        maxFullLine = self.maxFullLine(editBoard, self.openCol)
-        print ("現在の埋まっている盤面の最大列数:" + str(maxFullLine))
-        
+            
+            # 3列以上空きが出来ていて補修ができなかったら、積極的に消しに行くようにする
+            editBoard = self.insertWall3Line(editBoard, self.openCol, maxFullLine)
+             
+                
         # (maxFullLine >= 4):
         #    self.openCol = 2
         
@@ -364,7 +375,7 @@ class Block_Controller(object):
                     nextMove["strategy"]["y_moveblocknum"] = 1
         
         
-        if (self.CurrentMinoNum > 1 and maxFullLine >= 7 ):
+        if (self.CurrentMinoNum > 1 and maxFullLine >= 18 ):
             # 3列消しかつ逆L字（J字）で消せるなら最優先で消す
             width = self.board_data_width
             height = self.board_data_height
@@ -562,7 +573,7 @@ class Block_Controller(object):
                 #入れ替えた場合は、ホールドしているブロックの情報と入れ替えた縦棒の情報を入れ替えないといけない
                 print("ホールドしたブロックを今のブロックへ代入（ホールドしたブロックは評価しないため、情報としては両方とも評価対象のブロックになる")
                 
-                
+                '''
                 print ("入れ替え前今のミノ" + str(GameStatus["block_info"]["currentShape"]["index"]))
                 print ("入れ替え前回転数" + str(self.CurrentShape_class))
                 print ("入れ替え前クラス" + str(CurrentShapeDirectionRange))                
@@ -574,7 +585,7 @@ class Block_Controller(object):
                 GameStatus["block_info"]["currentShape"]["index"] = GameStatus["block_info"]["holdShape"]["index"]
                 CurrentShapeDirectionRange = GameStatus["block_info"]["holdShape"]["direction_range"]
                 CurrentMinoNum = HoldMinoNum
-                '''
+               
                 print("入れ替え完了")
                 print ("入れ替え後今のミノ" + str(GameStatus["block_info"]["currentShape"]["index"]))
                 print ("入れ替え後回転数" + str(self.CurrentShape_class))
@@ -582,6 +593,7 @@ class Block_Controller(object):
                 print ("入れ替え後ホールドのミノ" + str(GameStatus["block_info"]["holdShape"]["index"]))
                 print ("入れ替え後回転数ホールド" + str(GameStatus["block_info"]["holdShape"]["direction_range"]))
                 print ("入れ替え後ホールドクラス" + str(GameStatus["block_info"]["holdShape"]["class"]))  
+                 '''
                  
                
                 print ("入れ替え前今のミノ" + str(self.CurrentShape_index))
@@ -594,6 +606,7 @@ class Block_Controller(object):
                 self.CurrentShape_index, self.HoldShape_index = self.HoldShape_index, self.CurrentShape_index
                 CurrentShapeDirectionRange, HoldShapeDirectionRange = HoldShapeDirectionRange, CurrentShapeDirectionRange
                 CurrentMinoNum, HoldMinoNum = HoldMinoNum, CurrentMinoNum
+                changeHoldFl = 1
                 print("入れ替え完了")
                 print ("入れ替え後今のミノ" + str(self.CurrentShape_index))
                 print ("入れ替え後回転数" + str(CurrentShapeDirectionRange))
@@ -601,7 +614,7 @@ class Block_Controller(object):
                 print ("入れ替え後ホールドのミノ" + str(self.HoldShape_index))
                 print ("入れ替え後回転数ホールド" + str(HoldShapeDirectionRange))
                 print ("入れ替え後ホールドクラス" + str(self.HoldShape_class))   
-                '''
+                
         else:
             nextMove["strategy"]["use_hold_function"] = "n"
                   
@@ -664,18 +677,11 @@ class Block_Controller(object):
             _dfh = self.judgeEvaluate(CalcDataListHold, HoldShapeDirectionRange, self.HoldShape_class, editBoard, GameStatus, self.HoldShape_index)
         
         #print("ホールド側の評価" + str(_dfh))
-                
+        strategy = (_df['Direction'].min(), _df['xPos'].min(), 1, 1)        
         # なかった場合(配置後に空白ができてしまう場合はホールドしているミノも評価対象にする
         # and (GameStatus["block_info"]["currentShape"]["index"] != 1)
         if ((not (_df.empty) and _df['UnderSpace'].min() == 1) ):
-            
-            # 縦棒をホールドしてしまっていたら、一度入れ替え直す
-            if (nextMove["strategy"]["use_hold_function"] == "y"):
-                nextMove["strategy"]["use_hold_function"] == "n"
-                self.HoldShape_class = GameStatus["block_info"]["currentShape"]["class"]
-                GameStatus["block_info"]["holdShape"]["index"] = GameStatus["block_info"]["currentShape"]["index"]
-                HoldShapeDirectionRange = GameStatus["block_info"]["currentShape"]["direction_range"]
-            
+                       
             print("盤面に置けないのでホールドしてそれを評価する")
             #print(str(HoldShapeDirectionRange))
             #print(str(self.HoldShape_class))
@@ -699,29 +705,77 @@ class Block_Controller(object):
             nextMove["strategy"]["y_moveblocknum"] = strategyH[3]
             print(nextMove)
             ## 置いた後に最適華道家の確認のためにwaitを挟む（デバッグ用）
-            ## 大会やスコア計測時はコメントアウト市内と影響する
+            ## 大会やスコア計測時はコメントアウトしないと影響する
             #time.sleep(3)
         
             return nextMove
         else: 
+            
             #print("条件分岐入ってる")
             strategy = (_df['Direction'].min(), _df['xPos'].min(), 1, 1)       
             # 縦棒以外でホールドしているブロックが対象
-            print ("現在ブロック" + str(GameStatus["block_info"]["currentShape"]["index"]))
-            print ("ホールドしているブロック" + str(GameStatus["block_info"]["holdShape"]["index"]))
+            print ("現在ブロック" + str(self.CurrentShape_index))
+            print ("ホールドしているブロック" + str(self.HoldShape_index))
             if (GameStatus["block_info"]["holdShape"]["index"] is not None and GameStatus["block_info"]["holdShape"]["index"] != 1):
                 print ("今のdfの値" + str(_df))
                 print ("ホールドのdfhの値" + str(_dfh))
                 print ("今の値" + str(_df['FullAdjustSide'].min()))
                 print ("ホールドの値" + str(_dfh['FullAdjustSide'].min()))
+                print("入れ替えフラグ" + str(changeHoldFl))
                 
+                if (_df.empty):
+                    strategy = (_dfh['Direction'].min(), _dfh['xPos'].min(), 1, 1)
+                    if (changeHoldFl == 1):
+                        nextMove["strategy"]["use_hold_function"] = "n"
+                    else:
+                        nextMove["strategy"]["use_hold_function"] = "y"
+                    nextMove["strategy"]["direction"] = strategy[0]
+                    nextMove["strategy"]["x"] = strategy[1]
+                    nextMove["strategy"]["y_operation"] = strategy[2]
+                    nextMove["strategy"]["y_moveblocknum"] = strategy[3]
+                    print("現在のブロックは評価なしなしかつ、ホールドしているブロックのほうが評価が高いため入れ替えます")
+                    return nextMove
+                
+                if (_dfh.empty):
+                    strategy = (_df['Direction'].min(), _df['xPos'].min(), 1, 1)
+                    if (changeHoldFl == 1):
+                        nextMove["strategy"]["use_hold_function"] = "y"
+                    else:
+                        nextMove["strategy"]["use_hold_function"] = "n"
+                    nextMove["strategy"]["direction"] = strategy[0]
+                    nextMove["strategy"]["x"] = strategy[1]
+                    nextMove["strategy"]["y_operation"] = strategy[2]
+                    nextMove["strategy"]["y_moveblocknum"] = strategy[3]
+                    print("ホールドのブロックは評価なしなしかつ、現在のしているブロックのほうが評価が高いため入れ替えます")
+                    return nextMove
+                               
                 if (_df['FullAdjustSide'].min() is None):
-                    fullAd = 0
+                    strategy = (_dfh['Direction'].min(), _dfh['xPos'].min(), 1, 1)
+                    if (changeHoldFl == 1):
+                        nextMove["strategy"]["use_hold_function"] = "n"
+                    else:
+                        nextMove["strategy"]["use_hold_function"] = "y"
+                    nextMove["strategy"]["direction"] = strategy[0]
+                    nextMove["strategy"]["x"] = strategy[1]
+                    nextMove["strategy"]["y_operation"] = strategy[2]
+                    nextMove["strategy"]["y_moveblocknum"] = strategy[3]
+                    print("ホールドしているブロックのほうが評価が高いため入れ替えます")
+                    return nextMove
                 else:
                     fullAd = _df['FullAdjustSide'].min()
                     
                 if (_dfh['FullAdjustSide'].min() is None):
-                    fullAdHold = 0
+                    strategy = (_df['Direction'].min(), _df['xPos'].min(), 1, 1)
+                    if (changeHoldFl == 1):
+                        nextMove["strategy"]["use_hold_function"] = "y"
+                    else:
+                        nextMove["strategy"]["use_hold_function"] = "n"
+                    nextMove["strategy"]["direction"] = strategy[0]
+                    nextMove["strategy"]["x"] = strategy[1]
+                    nextMove["strategy"]["y_operation"] = strategy[2]
+                    nextMove["strategy"]["y_moveblocknum"] = strategy[3]
+                    print("今のブロックのほうが評価が高いため入れ替えます")
+                    return nextMove
                 else:
                     fullAdHold = _dfh['FullAdjustSide'].min()
         
@@ -729,7 +783,10 @@ class Block_Controller(object):
                 print("今のミノの接地数" + str(fullAd) + "-----------------------ホールドされているミノの接地数" + str(fullAdHold))
                 if ((fullAdHold > fullAd)):
                     strategy = (_dfh['Direction'].min(), _dfh['xPos'].min(), 1, 1)
-                    nextMove["strategy"]["use_hold_function"] = "y"
+                    if (changeHoldFl == 1):
+                        nextMove["strategy"]["use_hold_function"] = "n"
+                    else:
+                        nextMove["strategy"]["use_hold_function"] = "y"
                     nextMove["strategy"]["direction"] = strategy[0]
                     nextMove["strategy"]["x"] = strategy[1]
                     nextMove["strategy"]["y_operation"] = strategy[2]
@@ -739,12 +796,30 @@ class Block_Controller(object):
                 
                 # 次は下壁に完全に設定しているものを評価
                 if (_df['FullAdjust'].min() is None):
-                    fullAd2 = 0
+                    strategy = (_dfh['Direction'].min(), _dfh['xPos'].min(), 1, 1)
+                    if (changeHoldFl == 1):
+                        nextMove["strategy"]["use_hold_function"] = "n"
+                    else:
+                        nextMove["strategy"]["use_hold_function"] = "y"
+                    nextMove["strategy"]["direction"] = strategy[0]
+                    nextMove["strategy"]["x"] = strategy[1]
+                    nextMove["strategy"]["y_operation"] = strategy[2]
+                    nextMove["strategy"]["y_moveblocknum"] = strategy[3]
+                    print("ホールドしているブロックのほうが評価が高いため入れ替えます")
+                    return nextMove
                 else:
                     fullAd2 = _df['FullAdjust'].min()
                     
                 if (_dfh['FullAdjust'].min() is None):
-                    fullAdHold2 = 0
+                    strategy = (_df['Direction'].min(), _df['xPos'].min(), 1, 1)
+                    if (changeHoldFl == 1):
+                        nextMove["strategy"]["use_hold_function"] = "y"
+                    nextMove["strategy"]["direction"] = strategy[0]
+                    nextMove["strategy"]["x"] = strategy[1]
+                    nextMove["strategy"]["y_operation"] = strategy[2]
+                    nextMove["strategy"]["y_moveblocknum"] = strategy[3]
+                    print("今のブロックのほうが評価が高いため入れ替えます")
+                    return nextMove
                 else:
                     fullAdHold2 = _dfh['FullAdjust'].min()
         
@@ -752,7 +827,8 @@ class Block_Controller(object):
                 print("今のミノの接地数" + str(fullAd2) + "-----------------------ホールドされているミノの接地数" + str(fullAdHold2))
                 if ((fullAdHold2 > fullAd2)):
                     strategy = (_dfh['Direction'].min(), _dfh['xPos'].min(), 1, 1)
-                    nextMove["strategy"]["use_hold_function"] = "y"
+                    if (changeHoldFl == 0):
+                        nextMove["strategy"]["use_hold_function"] = "y"
                     nextMove["strategy"]["direction"] = strategy[0]
                     nextMove["strategy"]["x"] = strategy[1]
                     nextMove["strategy"]["y_operation"] = strategy[2]
@@ -842,11 +918,12 @@ class Block_Controller(object):
         # 今の回転数に対して、最大接地面と同じ下の設置数がない場合は壁が埋まってしまっている場合も考慮する(縛りをゆるくする)
         # もし埋めた場合は、埋めたフラグを立てる
         clFl = 0
+        '''
         dff = df.query('FullAdjust == 1')
         
         if (dff.empty):
             clFl = 1
-        
+        '''
         # 左壁がミノで埋まってたら別の消し方に変える(消したときにミノが残るパターンすべて想定して条件分岐させる)
         preBoard = self.board_backboard
         #print(self.debugBoard(preBoard))
@@ -885,27 +962,57 @@ class Block_Controller(object):
                 else:
                     df2 = df
             
-                print("床に対して残りマスが少ないものを評価")                
-                minBlankGroundSpace = df2['BlankGroundSpace'].min()
-                df3 = df2.query('BlankGroundSpace == @minBlankGroundSpace')
+                    # なるべく三列作らないようにする    
+                _df2 = df.query('TripleHole == 0') 
+                if (not _df2.empty):
+                    df2 = _df2
+                        
+                # 今積み上がっている列が一定以上なら何が何でも低く積んでいくように変える
+                if (self.maxFullLine(editBoard, self.openCol) < 10):
+                    print("設置した後に空白がないものを優先的に評価")                       
+                    dfss = df2.query('UnderSpace != 1')
+                    print(dfss)
+                    print("\n") 
+                else:
+                    dfss = df2
+        
+                print("床に対して残りマスが少ないものを評価")                       
+                minBlankGroundSpace = dfss['BlankGroundSpace'].min()
+                df3 = dfss.query('BlankGroundSpace == @minBlankGroundSpace')
                 print(df3)
                 print("\n")
-            
+                
                 print("下壁に最も接しているものを評価")
                 maxUnderWall = df3['UnderWall'].max()
                 df4 = df3.query('UnderWall == @maxUnderWall')
                 print(df4)
                 print("\n")
-            
+                
+                
+                '''
                 print("左壁に最も接しているものを評価")
                 maxSideWall = df4['SideWall'].max()
                 df5 = df4.query('SideWall == @maxSideWall')
                 print(df5)
                 print("\n")
-            
+                    
                 print("ブロックの最大高さが低いものを評価")
                 minBlockHeight = df5['MaxBlockHeight'].min()
                 df6 = df5.query('MaxBlockHeight == @minBlockHeight')
+                print(df6)
+                print("\n")
+                
+                '''
+                
+                print("ブロックの最大高さが低いものを評価")
+                minBlockHeight = df4['MaxBlockHeight'].min()
+                df5 = df4.query('MaxBlockHeight == @minBlockHeight')
+                print(df5)
+                print("\n")
+                
+                print("左壁に最も接しているものを評価")
+                maxSideWall = df5['SideWall'].max()
+                df6 = df5.query('SideWall == @maxSideWall')
                 print(df6)
                 print("\n")
             
@@ -920,8 +1027,7 @@ class Block_Controller(object):
                 _df6 = df6.head(1)
                 strategy = (_df6['Direction'].min(), _df6['xPos'].min(), 1, 1)
                 print(df6)
-                return df6
-                
+                return df6                
             else:
                 df2 = df.query('DeleteLineNum == @maxDeleteLineNum & closedWall != 1').head(1)
                 print(str(df2['Direction'].max()) + str(df2['xPos'].max()))
@@ -937,11 +1043,20 @@ class Block_Controller(object):
                 print("\n")
             else:
                 df2 = df
-                
-            print("設置した後に空白がないものを優先的に評価")                       
-            dfss = df2.query('UnderSpace != 1')
-            print(dfss)
-            print("\n") 
+            
+            # なるべく三列作らないようにする    
+            _df2 = df.query('TripleHole == 0') 
+            if (not _df2.empty):
+                df2 = _df2
+                       
+            # 今積み上がっている列が一定以上なら何が何でも低く積んでいくように変える
+            if (self.maxFullLine(editBoard, self.openCol) < 10):
+                print("設置した後に空白がないものを優先的に評価")                       
+                dfss = df2.query('UnderSpace != 1')
+                print(dfss)
+                print("\n") 
+            else:
+                dfss = df2
      
             print("床に対して残りマスが少ないものを評価")                       
             minBlankGroundSpace = dfss['BlankGroundSpace'].min()
@@ -954,7 +1069,9 @@ class Block_Controller(object):
             df4 = df3.query('UnderWall == @maxUnderWall')
             print(df4)
             print("\n")
-        
+            
+            
+            '''
             print("左壁に最も接しているものを評価")
             maxSideWall = df4['SideWall'].max()
             df5 = df4.query('SideWall == @maxSideWall')
@@ -966,6 +1083,22 @@ class Block_Controller(object):
             df6 = df5.query('MaxBlockHeight == @minBlockHeight')
             print(df6)
             print("\n")
+            
+            '''
+            
+            print("ブロックの最大高さが低いものを評価")
+            minBlockHeight = df4['MaxBlockHeight'].min()
+            df5 = df4.query('MaxBlockHeight == @minBlockHeight')
+            print(df5)
+            print("\n")
+            
+            print("左壁に最も接しているものを評価")
+            maxSideWall = df5['SideWall'].max()
+            df6 = df5.query('SideWall == @maxSideWall')
+            print(df6)
+            print("\n")
+            
+            
         
             print("最終的に採用したもの")
             if (df6.empty):
@@ -1037,7 +1170,8 @@ class Block_Controller(object):
                     fullAdjustSide = 1
                     
                 # 配置後の盤面で空白が３つできるか確認する
-                if (self.shapeIsetCheck(editBoard, self.openCol) > 0):
+                setX, setY = self.shapeIsetCheck(editBoard, self.openCol)
+                if (setX > 0):
                     tripleHole = 1
                                     
                 # 対象データをデータリストに退避（後で評価として利用する）
@@ -1130,7 +1264,8 @@ class Block_Controller(object):
                             fullAdjustSide = 1
                             
                         # 配置後の盤面で空白が３つできるか確認する
-                        if (self.shapeIsetCheck(editBoard, self.openCol) > 0):
+                        setX, setY = self.shapeIsetCheck(editBoard, self.openCol)
+                        if (setX > 0):
                             tripleHole = 1
                                             
                         # 対象データをデータリストに退避（後で評価として利用する）
@@ -1435,7 +1570,7 @@ class Block_Controller(object):
                         if (xx < x and yy < y):
                             xx = x
                             yy = y
-        return xx
+        return xx, yy
     
     # 現在の盤面で空白が周囲の壁で埋まっているかチェックする
     def replaceBlankSpace(self, board, openCol): 
@@ -1771,7 +1906,35 @@ class Block_Controller(object):
             for x in range(0, openCol, 1):
                 board[y * width + x] = 9
         
-        return board 
+        return board
+    
+    def insertWall3Line(self, board, openCol, row): 
+        
+        width = self.board_data_width
+        height = self.board_data_height
+                      
+        for x in range(openCol, width, 1):
+            board[(height - 1 - row) * width + x] = 9
+            #print("インデックス" + str((height - 1) * width + x))
+            #board[(row - 1) * width + x] = 9
+        
+        print("3列開いているため補修します。")
+        print(str(row))
+        print(self.debugBoard(board))
+        
+        return board
+    
+    def checkInsertWallLeftNum(self, board): 
+        
+        width = self.board_data_width
+        height = self.board_data_height
+        ins = 0
+        
+        for y in range(height -1, 0, -1):           
+            if (board[y * width] != 0):
+                ins = ins + 1
+                       
+        return ins
 
     
     #以下、評価に必要な情報を取得する
@@ -1828,18 +1991,13 @@ class Block_Controller(object):
             # each x line
             #print("隣接数テスト" + str(y))
             #print(str(y) + "列")
-            maxHeightFl = 0
             
             for x in range(xNum, width, 1):
                 # 何かしらのブロックがあったらそれを最大高さとして評価する
                 #print (str(y * self.board_data_width + x) + "について高さーーーーーーーーーーーーーーーーーーーーーーーー") 
-                if board[y0 * self.board_data_width + x ] != 0:
-                    #print("値ーーーーーーーーーーーーーーーーーーーーー" + str(board[y0 * self.board_data_width + x ]))
-                    #print("はいってるよーーーーーーーーーーーーーーーーーーーーーーーー")
-                    if (maxHeightFl == 0): 
-                        maxHeight = maxHeight + 1
-                        maxHeightFl == 1
-                        break
+                if board[y0 * self.board_data_width + x ] == minoIndex:
+                    maxHeight = height - y0
+                    break
         
         
         #print("最大高さ" + str(maxHeight) + "------------------------------------------------------------------------------------------------------------")            
@@ -1858,7 +2016,6 @@ class Block_Controller(object):
             
             #print("探索開始" + str(height - 1) + "ここまで" + str(maxHeight) +"探索数" + str(height - y) + "回目------------------------------------------------------------------------------------------------------------")
             #rint (str(height) + "について高さーーーーーーーーーーーーーーーーーーーーーーーー") 
-            maxHeightFl = 0
             groundFl = 1
             groundWallFl = 0
             # 床が全部ブロックで埋まっていたら、その列は評価せず次の列へ
