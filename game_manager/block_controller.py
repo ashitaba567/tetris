@@ -836,8 +836,6 @@ class Block_Controller(object):
                     print("ホールドしているブロックのほうが評価が高いため入れ替えます")
                     return nextMove
                 
-                
-                            
         # S字とZ字は一番いらないブロックなので早めに消していく
         
         if (self.delete == 1):
@@ -1034,6 +1032,7 @@ class Block_Controller(object):
                 strategy = (df2['Direction'].max(), df2['xPos'].max(), 1, 1)
                 print(df2)
                 print("\n")
+                
         #通常モード
         else:
             
