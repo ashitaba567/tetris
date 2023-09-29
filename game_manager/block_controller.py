@@ -685,6 +685,15 @@ class Block_Controller(object):
             print("盤面に置けないのでホールドしてそれを評価する")
             #print(str(HoldShapeDirectionRange))
             #print(str(self.HoldShape_class))
+            
+            if (_dfh.empty):
+                nextMove["strategy"]["use_hold_function"] = "y"
+                nextMove["strategy"]["direction"] = strategy[0]
+                nextMove["strategy"]["x"] = strategy[1]
+                nextMove["strategy"]["y_operation"] = strategy[2]
+                nextMove["strategy"]["y_moveblocknum"] = strategy[3]
+                print(nextMove)
+            
             strategyH = (_dfh['Direction'].min(), _dfh['xPos'].min(), 1, 1)
             
             # ホールド側のブロックも評価に値しなければ諦める
@@ -836,8 +845,6 @@ class Block_Controller(object):
                     print("ホールドしているブロックのほうが評価が高いため入れ替えます")
                     return nextMove
                 
-                
-                            
         # S字とZ字は一番いらないブロックなので早めに消していく
         
         if (self.delete == 1):
@@ -1034,6 +1041,7 @@ class Block_Controller(object):
                 strategy = (df2['Direction'].max(), df2['xPos'].max(), 1, 1)
                 print(df2)
                 print("\n")
+                return df2
         #通常モード
         else:
             
@@ -1050,7 +1058,7 @@ class Block_Controller(object):
                 df2 = _df2
                        
             # 今積み上がっている列が一定以上なら何が何でも低く積んでいくように変える
-            if (self.maxFullLine(editBoard, self.openCol) < 10):
+            if (self.maxFullLine(editBoard, self.openCol) < 6):
                 print("設置した後に空白がないものを優先的に評価")                       
                 dfss = df2.query('UnderSpace != 1')
                 print(dfss)
@@ -1915,6 +1923,8 @@ class Block_Controller(object):
                       
         for x in range(openCol, width, 1):
             board[(height - 1 - row) * width + x] = 9
+            #board[(height - 2 - row) * width + x] = 9
+            #board[(height - 3 - row) * width + x] = 9
             #print("インデックス" + str((height - 1) * width + x))
             #board[(row - 1) * width + x] = 9
         
